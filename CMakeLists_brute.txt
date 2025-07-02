@@ -1,0 +1,89 @@
+cmake_minimum_required(VERSION 3.13)
+project(rdp-brute LANGUAGES C)
+
+# Set C standard
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+# Add debug info for debugging
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
+# Find required packages
+find_package(PkgConfig REQUIRED)
+
+# Try to find FreeRDP via pkg-config first
+pkg_check_modules(FREERDP freerdp3)
+if(NOT FREERDP_FOUND)
+    pkg_check_modules(FREERDP freerdp2)
+endif()
+
+if(NOT FREERDP_FOUND)
+    # Fallback to manual search in current directory
+    set(FREERDP_INCLUDE_DIRS 
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/winpr/include
+    )
+    
+    # Link against libraries in the build directory
+    set(FREERDP_LIBRARY_DIRS 
+        ${CMAKE_CURRENT_BINARY_DIR}/libfreerdp
+        ${CMAKE_CURRENT_BINARY_DIR}/winpr/libwinpr
+    )
+    
+    set(FREERDP_LIBRARIES 
+        freerdp3
+        winpr3
+        freerdp-client3
+    )
+    
+    set(FREERDP_CFLAGS_OTHER "")
+endif()
+
+# Find pthread
+find_package(Threads REQUIRED)
+
+# Find OpenSSL
+find_package(OpenSSL REQUIRED)
+
+# Create the executable
+add_executable(rdp-brute rdp_brute.c)
+
+# Include directories
+target_include_directories(rdp-brute PRIVATE 
+    ${FREERDP_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+# Link directories  
+if(FREERDP_LIBRARY_DIRS)
+    target_link_directories(rdp-brute PRIVATE ${FREERDP_LIBRARY_DIRS})
+endif()
+
+# Compiler flags
+target_compile_options(rdp-brute PRIVATE 
+    ${FREERDP_CFLAGS_OTHER}
+    -Wall
+    -Wextra  
+    -O3
+    -march=native
+    -mtune=native
+    -funroll-loops
+    -DWITH_OPENSSL
+)
+
+# Link libraries
+target_link_libraries(rdp-brute PRIVATE
+    ${FREERDP_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${OPENSSL_LIBRARIES}
+    m
+)
+
+# Install target  
+install(TARGETS rdp-brute DESTINATION bin)
+
+# Print configuration info
+message(STATUS "FreeRDP found: ${FREERDP_FOUND}")
+message(STATUS "FreeRDP include dirs: ${FREERDP_INCLUDE_DIRS}")  
+message(STATUS "FreeRDP library dirs: ${FREERDP_LIBRARY_DIRS}")
+message(STATUS "FreeRDP libraries: ${FREERDP_LIBRARIES}")

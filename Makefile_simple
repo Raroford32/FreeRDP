@@ -1,0 +1,75 @@
+# High-Performance RDP Scanner Makefile
+# Simplified version without FreeRDP dependencies
+
+CC = gcc
+CFLAGS = -std=c11 -Wall -Wextra -O3 -march=native -mtune=native -funroll-loops
+LDFLAGS = -lpthread
+
+# Source files
+SOURCES = rdp_brute_simple.c
+TARGET = rdp-scanner
+
+# Default target
+all: $(TARGET)
+
+# Build target
+$(TARGET): $(SOURCES)
+	@echo "Building high-performance RDP scanner..."
+	$(CC) $(CFLAGS) $(SOURCES) -o $(TARGET) $(LDFLAGS)
+	@echo "Build complete: $(TARGET)"
+
+# Create sample input files
+samples:
+	@echo "Creating sample input files..."
+	echo "192.168.1.10" > ips.txt
+	echo "192.168.1.11" >> ips.txt
+	echo "192.168.1.12" >> ips.txt
+	echo "10.0.0.1" >> ips.txt
+	echo "administrator" > users.txt
+	echo "admin" >> users.txt
+	echo "user" >> users.txt
+	echo "guest" >> users.txt
+	echo "service" >> users.txt
+	echo "password" > passwords.txt
+	echo "123456" >> passwords.txt
+	echo "admin" >> passwords.txt
+	echo "password123" >> passwords.txt
+	echo "" >> passwords.txt
+	echo "12345" >> passwords.txt
+	@echo "Sample files created: ips.txt, users.txt, passwords.txt"
+
+# Test build
+test: $(TARGET) samples
+	@echo "Running quick connectivity test..."
+	./$(TARGET) -i ips.txt -u users.txt -p passwords.txt -o test_results.txt -t 10 -f
+	@echo "Test completed. Check test_results.txt"
+
+# Clean build files
+clean:
+	@echo "Cleaning build files..."
+	rm -f $(TARGET) *.o test_results.txt
+
+# Install to system
+install: $(TARGET)
+	@echo "Installing $(TARGET)..."
+	sudo cp $(TARGET) /usr/local/bin/
+	sudo chmod +x /usr/local/bin/$(TARGET)
+	@echo "$(TARGET) installed to /usr/local/bin/"
+
+# Show help
+help:
+	@echo "High-Performance RDP Scanner - Makefile Help"
+	@echo "==========================================="
+	@echo "Targets:"
+	@echo "  all          - Build the scanner (default)"
+	@echo "  samples      - Create sample input files"
+	@echo "  test         - Build and run a test"
+	@echo "  install      - Install to /usr/local/bin"
+	@echo "  clean        - Remove build files"
+	@echo "  help         - Show this help"
+	@echo ""
+	@echo "Usage after building:"
+	@echo "  ./rdp-scanner -i ips.txt -u users.txt -p passwords.txt -o results.txt"
+	@echo "  ./rdp-scanner -f -t 100  # Fast mode with 100 threads"
+
+.PHONY: all samples test clean install help
