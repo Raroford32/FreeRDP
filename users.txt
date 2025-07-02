@@ -3,3 +3,4 @@ admin
 user
 guest
 service
+operator
