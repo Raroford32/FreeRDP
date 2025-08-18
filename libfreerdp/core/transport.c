@@ -754,22 +754,24 @@ static void transport_bio_error_log(rdpTransport* transport, LPCSTR biofunc,
 	if (ERR_peek_error() == 0)
 	{
 		char ebuffer[256] = { 0 };
-		const char* fmt = "%s returned a system error %d: %s";
+
 		if (saveerrno == 0)
-			fmt = "%s retries exceeded";
-		WLog_PrintMessage(transport->log, WLOG_MESSAGE_TEXT, level, line, file, func, fmt, biofunc,
-		                  saveerrno, winpr_strerror(saveerrno, ebuffer, sizeof(ebuffer)));
+			WLog_PrintTextMessage(transport->log, level, line, file, func, "%s retries exceeded",
+			                      biofunc);
+		else
+			WLog_PrintTextMessage(transport->log, level, line, file, func,
+			                      "%s returned a system error %d: %s", biofunc, saveerrno,
+			                      winpr_strerror(saveerrno, ebuffer, sizeof(ebuffer)));
 		return;
 	}
 
 	while ((sslerr = ERR_get_error()))
 	{
 		char buf[120] = { 0 };
-		const char* fmt = "%s returned an error: %s";
 
 		ERR_error_string_n(sslerr, buf, 120);
-		WLog_PrintMessage(transport->log, WLOG_MESSAGE_TEXT, level, line, file, func, fmt, biofunc,
-		                  buf);
+		WLog_PrintTextMessage(transport->log, level, line, file, func, "%s returned an error: %s",
+		                      biofunc, buf);
 	}
 }
 
@@ -1961,10 +1963,20 @@ static int transport_layer_bio_write(BIO* bio, const char* buf, int size)
 
 	BIO_clear_flags(bio, BIO_FLAGS_WRITE | BIO_FLAGS_SHOULD_RETRY);
 
-	int status = IFCALLRESULT(-1, layer->Write, layer->userContext, buf, size);
+	errno = 0;
+	const int status = IFCALLRESULT(-1, layer->Write, layer->userContext, buf, size);
 
 	if (status >= 0 && status < size)
 		BIO_set_flags(bio, (BIO_FLAGS_WRITE | BIO_FLAGS_SHOULD_RETRY));
+
+	switch (errno)
+	{
+		case EAGAIN:
+			BIO_set_flags(bio, (BIO_FLAGS_WRITE | BIO_FLAGS_SHOULD_RETRY));
+			break;
+		default:
+			break;
+	}
 
 	return status;
 }
@@ -1983,11 +1995,17 @@ static int transport_layer_bio_read(BIO* bio, char* buf, int size)
 		return -1;
 
 	BIO_clear_flags(bio, BIO_FLAGS_READ | BIO_FLAGS_SHOULD_RETRY);
+	errno = 0;
+	const int status = IFCALLRESULT(-1, layer->Read, layer->userContext, buf, size);
 
-	int status = IFCALLRESULT(-1, layer->Read, layer->userContext, buf, size);
-
-	if (status == 0)
-		BIO_set_flags(bio, (BIO_FLAGS_READ | BIO_FLAGS_SHOULD_RETRY));
+	switch (errno)
+	{
+		case EAGAIN:
+			BIO_set_flags(bio, (BIO_FLAGS_READ | BIO_FLAGS_SHOULD_RETRY));
+			break;
+		default:
+			break;
+	}
 
 	return status;
 }

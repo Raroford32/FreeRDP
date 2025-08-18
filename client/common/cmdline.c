@@ -1026,12 +1026,15 @@ static BOOL parseSubOptions(rdpSettings* settings, const CmdLineSubOptions* opts
 static int fail_at_(const COMMAND_LINE_ARGUMENT_A* arg, int rc, const char* file, const char* fkt,
                     size_t line)
 {
+	if (rc == 0)
+		return rc;
+
 	const DWORD level = WLOG_ERROR;
 	wLog* log = WLog_Get(TAG);
 	if (WLog_IsLevelActive(log, level))
-		WLog_PrintMessage(log, WLOG_MESSAGE_TEXT, level, line, file, fkt,
-		                  "Command line parsing failed at '%s' value '%s' [%d]", arg->Name,
-		                  arg->Value, rc);
+		WLog_PrintTextMessage(log, level, line, file, fkt,
+		                      "Command line parsing failed at '%s' value '%s' [%d]", arg->Name,
+		                      arg->Value, rc);
 	return rc;
 }
 
@@ -3737,12 +3740,11 @@ static int parse_aad_options(rdpSettings* settings, const COMMAND_LINE_ARGUMENT_
 			SSIZE_T id;
 			int (*fkt)(rdpSettings* settings, const char* value);
 		};
-		const struct app_map amap[] = {
-			{ "tenantid:", FreeRDP_GatewayAvdAadtenantid, parse_app_option_program },
-			{ "ad:", FreeRDP_GatewayAzureActiveDirectory, NULL },
-			{ "avd-access:", FreeRDP_GatewayAvdAccessAadFormat, NULL },
-			{ "avd-token:", FreeRDP_GatewayAvdAccessTokenFormat, NULL },
-			{ "avd-scope:", FreeRDP_GatewayAvdScope, NULL }
+		const struct app_map amap[] = { { "tenantid:", FreeRDP_GatewayAvdAadtenantid, NULL },
+			                            { "ad:", FreeRDP_GatewayAzureActiveDirectory, NULL },
+			                            { "avd-access:", FreeRDP_GatewayAvdAccessAadFormat, NULL },
+			                            { "avd-token:", FreeRDP_GatewayAvdAccessTokenFormat, NULL },
+			                            { "avd-scope:", FreeRDP_GatewayAvdScope, NULL }
 
 		};
 		for (size_t x = 0; x < count; x++)
@@ -4087,8 +4089,43 @@ static BOOL parse_gateway_usage_option(rdpSettings* settings, const char* value)
 	return freerdp_set_gateway_usage_method(settings, type);
 }
 
+static char* unescape(const char* str)
+{
+	char* copy = strdup(str);
+	if (!copy)
+		return NULL;
+
+	bool escaped = false;
+	char* dst = copy;
+	while (*str != '\0')
+	{
+		char cur = *str++;
+
+		switch (cur)
+		{
+			case '\\':
+				if (!escaped)
+				{
+					escaped = true;
+					continue;
+				}
+				// fallthrough
+				WINPR_FALLTHROUGH
+			default:
+				*dst++ = cur;
+				escaped = false;
+				break;
+		}
+	}
+
+	*dst = '\0';
+
+	return copy;
+}
+
 static BOOL parse_gateway_options(rdpSettings* settings, const COMMAND_LINE_ARGUMENT_A* arg)
 {
+	char* argval = NULL;
 	BOOL rc = FALSE;
 
 	WINPR_ASSERT(settings);
@@ -4107,9 +4144,10 @@ static BOOL parse_gateway_options(rdpSettings* settings, const COMMAND_LINE_ARGU
 	for (size_t x = 0; x < count; x++)
 	{
 		BOOL validOption = FALSE;
-		const char* argval = ptr[x];
-
-		WINPR_ASSERT(argval);
+		free(argval);
+		argval = unescape(ptr[x]);
+		if (!argval)
+			goto fail;
 
 		const char* gw = option_starts_with("g:", argval);
 		if (gw)
@@ -4216,6 +4254,7 @@ static BOOL parse_gateway_options(rdpSettings* settings, const COMMAND_LINE_ARGU
 
 	rc = TRUE;
 fail:
+	free(argval);
 	CommandLineParserFree(ptr);
 	return rc;
 }
